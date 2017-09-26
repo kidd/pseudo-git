@@ -1,4 +1,4 @@
-* Clit
+* pseudo git
   Because the idea behind git is so cool that has to be implemented by oneself :)
 
   - https://jwiegley.github.io/git-from-the-bottom-up/
