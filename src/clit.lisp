@@ -2,21 +2,28 @@
 
 (defpackage clit
   (:use :cl)
-  ;; (:use :ironclad :arnesi)
+  ;; (:use :ironclad :arnesi :salza2)
   )
 
 (in-package :clit)
 
 (defvar *dir* "/tmp/clit/")
 
+
+(defun ensure-list (l)
+  (if (listp l)
+      l
+      (list l)))
+
+;;; blob tree commit tag
 (defun write-binary-file (path content)
   (with-open-file (s path
                      :direction :output
                      :if-exists :supersede
                      :if-does-not-exist :create
                      :element-type '(unsigned-byte 8))
-    (write-sequence content s)))
-
+    (dolist (c (ensure-list content))
+      (write-sequence c s))))
 
 (defun write-file (path content)
   (with-open-file (s path
@@ -47,7 +54,7 @@
   )
 
 
-(defvar +NULL+ #x00)
+(defvar +NULL+ #\Nul)
 
 
 (defun digest-hex (arg)
@@ -55,18 +62,36 @@
 
 (defun sha1-str (string)
   (let ((digester (ironclad:make-digest :sha1)))
-    (;digest-hex
-     progn
-      (ironclad:produce-digest
+    (digest-hex
+     (ironclad:produce-digest
       (ironclad:update-digest
        digester
        (arnesi:string-to-octets string :utf8))))))
 
+(defun str-join (&rest strs)
+  (apply 'concatenate 'string strs))
+
 (defun hash-object (data obj-type &optional (write t))
-  (let* ((header (format nil "~a" obj-type (length data)))
-         (full-data (join-list (list header +NULL+ data)))
-         (sha1 (sha1 full-data)))
-    (write-file (full-path ".git/foo") full-data)))
+  ;; (arnesi:string-to-octets "hjoal" :utf-8)
+  (let* ((header (format nil
+                         "~a ~a"
+                         obj-type
+                         (length data)))
+         (full-data (format nil "~a~a~a" header +NULL+ data))
+         (sha1 (sha1-str full-data)))
+    (when write
+      (let ((path (str-join ".git/objects/"
+                            (subseq sha1 0 2)))
+            (compressed-data (salza2:compress-data (sb-ext:string-to-octets
+                                                    full-data)
+                                                   'salza2:zlib-compressor)))
+        (ensure-directories-exist path)
+        (write-binary-file
+         ;; (full-path ".git/objects/foo")
+         (str-join path (subseq sha1 2))
+         compressed-data
+         )))
+    sha1))
 
 
 ;; (defmacro set-once (place val)
