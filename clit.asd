@@ -18,7 +18,7 @@
   :version "0.1"
   :author "Raimon Grau"
   :license "LLGPL"
-  :depends-on (cl-fad alexandria ironclad salza2 arnesi)
+  :depends-on (cl-fad alexandria ironclad salza2 arnesi pack)
   :components ((:module "src"
                 :components
                 ((:file "clit"))))
