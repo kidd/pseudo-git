@@ -565,16 +565,17 @@
                  dev ino mode uid
                  gid size sha1 flags) = (pack:unpack "!LLLLLLLLLL20sH" s)
             for path = (get-path s)
-            collect (list path ctime_s
-                          ctime_n mtime_s mtime_n
-                          dev ino mode uid
-                          gid size sha1 flags)
+            collect (apply '%make-index-entry (list path ctime_s
+                                                   ctime_n mtime_s mtime_n
+                                                   dev ino mode uid
+                                                   gid size sha1 flags))
             do (format t "~a~%" path)))))
 
 
 
 (defvar *index* nil)
 (defvar *index-path* "../.git/index")
+(defvar *repo-root* (format nil "~A~A" *default-pathname-defaults* "/../"))
 
 (defun index ()
   (setf *index* (read-index *index-path*)))
@@ -583,14 +584,28 @@
 (defun last1 (lst)
   (car (last lst)))
 
+(defstruct (index-entry (:type list)
+                        (:constructor %make-index-entry
+                            (path ctime_s ctime_n mtime_s mtime_n
+                             dev ino mode uid gid size sha1 flags)))
+  path ctime_s ctime_n mtime_s mtime_n
+  dev ino mode uid gid size sha1 flags)
+
 (defun changed ()
-  (let ()
-    (loop for entry in *index*
-          when (string/= (hash-object
-                          (alexandria:read-file-into-byte-vector
-                           (last1 entry))
-                          "blob"
-                          nil)
-                         (digest-hex
-                          (mapcar 'char-code (coerce (nth 11 entry) 'list))))
-            do (format t "AAA"))))
+  (loop for entry in (index)
+        when (string/= (hash-object
+                        (alexandria:read-file-into-byte-vector
+                         (merge-pathnames (first entry) *repo-root*)) "blob" nil)
+                       (digest-hex
+                        (mapcar 'char-code (coerce (nth 11 entry) 'list))))
+          do (format t " -> ~a~%" (first entry))))
+
+(defun write-tree ()
+  (hash-object
+   (format nil "~{~A~}"
+           (loop for entry in (index)
+                 collect (format nil "~a~a~a"
+                                 (index-entry-mode entry)
+                                 +NULL+
+                                 (index-entry-path entry))))
+   "tree"))
